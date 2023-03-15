@@ -13,7 +13,7 @@ types:
         type: u2
       - id: data
         type: str
-        encoding: ansi
+        encoding: ASCII
         size: num_data
         if: num_data != 0
   str_with_len4:
@@ -22,7 +22,7 @@ types:
         type: u4
       - id: data
         type: str
-        encoding: ansi
+        encoding: ASCII
         size: num_data
         if: num_data != 0
   surface:
@@ -207,7 +207,7 @@ types:
       - id: texture_names
         type: str
         terminator: 0
-        encoding: ansi
+        encoding: ASCII
         repeat: expr
         repeat-expr: num_texture_names
       - id: vertices_lengths
@@ -413,8 +413,9 @@ types:
         type: u4
       - id: render_nodes
         type: render_node
+        if: num_render_nodes != 0
         repeat: expr
-        repeat-expr: 1
+        repeat-expr: num_render_nodes
       - id: no_child_flag
         type: u4
         doc: allways zero

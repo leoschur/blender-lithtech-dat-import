@@ -281,7 +281,7 @@ class LithtechDat(KaitaiStruct):
             self.num_texture_names = self._io.read_u4le()
             self.texture_names = []
             for i in range(self.num_texture_names):
-                self.texture_names.append((self._io.read_bytes_term(0, False, True, True)).decode(u"ansi"))
+                self.texture_names.append((self._io.read_bytes_term(0, False, True, True)).decode(u"ASCII"))
 
             self.vertices_lengths = []
             for i in range(self.num_polygons):
@@ -367,7 +367,7 @@ class LithtechDat(KaitaiStruct):
         def _read(self):
             self.num_data = self._io.read_u2le()
             if self.num_data != 0:
-                self.data = (self._io.read_bytes(self.num_data)).decode(u"ansi")
+                self.data = (self._io.read_bytes(self.num_data)).decode(u"ASCII")
 
 
 
@@ -435,9 +435,11 @@ class LithtechDat(KaitaiStruct):
         def _read(self):
             self.name = LithtechDat.StrWithLen2(self._io, self, self._root)
             self.num_render_nodes = self._io.read_u4le()
-            self.render_nodes = []
-            for i in range(1):
-                self.render_nodes.append(LithtechDat.RenderNode(self._io, self, self._root))
+            if self.num_render_nodes != 0:
+                self.render_nodes = []
+                for i in range(self.num_render_nodes):
+                    self.render_nodes.append(LithtechDat.RenderNode(self._io, self, self._root))
+
 
             self.no_child_flag = self._io.read_u4le()
 
@@ -524,7 +526,7 @@ class LithtechDat(KaitaiStruct):
         def _read(self):
             self.num_data = self._io.read_u4le()
             if self.num_data != 0:
-                self.data = (self._io.read_bytes(self.num_data)).decode(u"ansi")
+                self.data = (self._io.read_bytes(self.num_data)).decode(u"ASCII")
 
 
 
