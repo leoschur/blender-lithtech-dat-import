@@ -1,7 +1,7 @@
 # Blender Lithtech DAT Importer
 
 This is a blender addon to import Lithtech \*.dat (DAT) map files. The plugin is developed with Blender v(3.4.1) and works for Lithtech DAT files with version 85.
-The Plugin is developed and tested for Combat Arms maps, but should work with every Lithtech game, provided that the version matches.
+The Plugin is developed and tested for Combat Arms maps, but should work with every Lithtech game, provided that the version matche.
 
 ## Installation
 
