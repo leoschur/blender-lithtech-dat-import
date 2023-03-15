@@ -10,7 +10,7 @@ The Plugin is developed and tested for Combat Arms maps, but should work with ev
     - or clone this repository and zip the entire folder. When cloning, don't forget to clone recursive to include the required submodules.
         ```
         git clone --recursive https://github.com/leoschur/blender-lithtech-dat-import
-        ``` 
+        ```
 2. In Blender navigate to: `Edit -> Preferences -> Add-ons -> Install`
 3. Select the downloaded/ created `blender-lithtech-dat-import.zip` file
 4. Enable the Plugin with the check-box
@@ -26,6 +26,14 @@ bpy.ops.import_scene.lithtech_dat(filepath)
 ```
 
 Or over the Blender quick search with F3 `Import Lithtech Dat map (.dat)`
+
+If you want to reinstall the Add-on or get a newer version
+
+1.  **Disable** the Add-on first in `Edit -> Preferences -> Add-ons -> Import-Export: Lithtech DAT Map Format (.dat)` by clicking on the checkbox
+2.  Click on the arrow on the left of the Add-on entry
+3.  Click on Remove
+4.  Restart Blender
+5.  Only than you can reinstall the Add-on again
 
 ## Limitation
 
