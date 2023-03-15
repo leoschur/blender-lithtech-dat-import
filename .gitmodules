@@ -1,5 +1,5 @@
 [submodule "kaitai_struct_python_runtime"]
-	path = kaitai_struct_python_runtime
+	path = kaitai_lithtech_dat_struct/kaitai_struct_python_runtime
 	url = https://github.com/kaitai-io/kaitai_struct_python_runtime.git
 	branch = master
 [submodule "kaitai_lithtech_dat_struct"]

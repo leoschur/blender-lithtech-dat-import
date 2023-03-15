@@ -1,7 +1,6 @@
 import bpy
 import bmesh
 from .lithtech_dat_import import ImportLithtechDat
-from .kaitai_struct_python_runtime import kaitaistruct
 from mathutils import Vector
 
 bl_info = {
