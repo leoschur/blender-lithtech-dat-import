@@ -4,5 +4,5 @@
 	branch = master
 [submodule "kaitai_lithtech_dat_struct"]
 	path = kaitai_lithtech_dat_struct
-	url = .\\kaitai_lithtech_dat_struct\\
+	url = https://github.com/leoschur/kaitai_lithtech_dat_struct.git
 	branch = main

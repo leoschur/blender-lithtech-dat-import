@@ -1,3 +1,0 @@
-[submodule "kaitai_struct_python_runtime"]
-	path = kaitai_struct_python_runtime
-	url = .\\kaitai_struct_python_runtime\\
