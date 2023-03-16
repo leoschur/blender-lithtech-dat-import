@@ -150,7 +150,7 @@ def createPhysicsData(parent, world):
         parent: collection the data physics collection is append to
         world: dat_importer.lithtech_dat.LithtechDat imported map file
     """
-    physics = vertigo.collision_data.polygons
+    physics = world.collision_data.polygons
     poly_vertices = []
     poly_triangles = []
     index = 0
@@ -177,6 +177,7 @@ def read_some_data(C, filepath, use_some_setting):
     map = bpy.data.collections.new(name)
     createRenderNodes(map, dat)
     createWMRenderNodes(map, dat)
+    createPhysicsData(map, dat)
     C.collection.children.link(map)
 
     return {'FINISHED'}
