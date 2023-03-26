@@ -106,6 +106,38 @@ types:
       - id: poly_index
         type: u4
   # world object types
+  wop_string:
+    seq:
+      - id: value
+        type: str_with_len2
+  wop_vec3:
+    seq:
+      - id: value
+        type: vec3
+  wop_color:
+    seq:
+      - id:  value
+        type: color
+  wop_f4:
+    seq:
+      - id: value
+        type: f4
+  wop_flag:
+    seq:
+      - id: value
+        type: u4
+  wop_bool:
+    seq:
+      - id: value
+        type: u1
+  wop_int:
+    seq:
+      - id: value
+        type: s4
+  wop_quaternion:
+    seq:
+      - id: value
+        type: quaternion
   world_object_property:
     seq:
       - id: name
@@ -120,13 +152,14 @@ types:
         type:
           switch-on: magic
           cases:
-            0x00: str_with_len2
-            0x01: vec3
-            0x02: color
-            0x03: f4
-            0x05: u1 # boolean
-            0x06: s4
-            0x07: quaternion
+            0x00: wop_string
+            0x01: wop_vec3
+            0x02: wop_color
+            0x03: wop_f4
+            0x04: wop_flag
+            0x05: wop_bool
+            0x06: wop_int
+            0x07: wop_quaternion
   world_object:
     seq:
       - id: len_object

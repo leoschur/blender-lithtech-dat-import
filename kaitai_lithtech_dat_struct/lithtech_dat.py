@@ -33,19 +33,21 @@ class LithtechDat(KaitaiStruct):
             self.len_data = self._io.read_u2le()
             _on = self.magic
             if _on == 0:
-                self.data = LithtechDat.StrWithLen2(self._io, self, self._root)
+                self.data = LithtechDat.WopString(self._io, self, self._root)
+            elif _on == 4:
+                self.data = LithtechDat.WopFlag(self._io, self, self._root)
             elif _on == 6:
-                self.data = self._io.read_s4le()
+                self.data = LithtechDat.WopInt(self._io, self, self._root)
             elif _on == 7:
-                self.data = LithtechDat.Quaternion(self._io, self, self._root)
+                self.data = LithtechDat.WopQuaternion(self._io, self, self._root)
             elif _on == 1:
-                self.data = LithtechDat.Vec3(self._io, self, self._root)
+                self.data = LithtechDat.WopVec3(self._io, self, self._root)
             elif _on == 3:
-                self.data = self._io.read_f4le()
+                self.data = LithtechDat.WopF4(self._io, self, self._root)
             elif _on == 5:
-                self.data = self._io.read_u1()
+                self.data = LithtechDat.WopBool(self._io, self, self._root)
             elif _on == 2:
-                self.data = LithtechDat.Color(self._io, self, self._root)
+                self.data = LithtechDat.WopColor(self._io, self, self._root)
 
 
     class WorldObject(KaitaiStruct):
@@ -218,6 +220,17 @@ class LithtechDat(KaitaiStruct):
 
 
 
+    class WopF4(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.value = self._io.read_f4le()
+
+
     class RenderSection(KaitaiStruct):
         def __init__(self, _io, _parent=None, _root=None):
             self._io = _io
@@ -251,6 +264,28 @@ class LithtechDat(KaitaiStruct):
             self.world_extends_min = LithtechDat.Vec3(self._io, self, self._root)
             self.world_extends_max = LithtechDat.Vec3(self._io, self, self._root)
             self.world_offset = LithtechDat.Vec3(self._io, self, self._root)
+
+
+    class WopInt(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.value = self._io.read_s4le()
+
+
+    class WopColor(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.value = LithtechDat.Color(self._io, self, self._root)
 
 
     class WorldModel(KaitaiStruct):
@@ -309,6 +344,17 @@ class LithtechDat(KaitaiStruct):
 
             self.root_node_index = self._io.read_s4le()
             self.sections = self._io.read_u4le()
+
+
+    class WopFlag(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.value = self._io.read_u4le()
 
 
     class SkyPortal(KaitaiStruct):
@@ -425,6 +471,17 @@ class LithtechDat(KaitaiStruct):
             self.name = self._io.read_u4le()
 
 
+    class WopVec3(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.value = LithtechDat.Vec3(self._io, self, self._root)
+
+
     class WorldModelRenderNode(KaitaiStruct):
         def __init__(self, _io, _parent=None, _root=None):
             self._io = _io
@@ -499,6 +556,17 @@ class LithtechDat(KaitaiStruct):
 
 
 
+    class WopBool(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.value = self._io.read_u1()
+
+
     class WorldModelPolygon(KaitaiStruct):
         def __init__(self, num_vertices_indices, _io, _parent=None, _root=None):
             self._io = _io
@@ -553,6 +621,17 @@ class LithtechDat(KaitaiStruct):
 
 
 
+    class WopQuaternion(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.value = LithtechDat.Quaternion(self._io, self, self._root)
+
+
     class Vec3(KaitaiStruct):
         def __init__(self, _io, _parent=None, _root=None):
             self._io = _io
@@ -564,6 +643,17 @@ class LithtechDat(KaitaiStruct):
             self.x = self._io.read_f4le()
             self.y = self._io.read_f4le()
             self.z = self._io.read_f4le()
+
+
+    class WopString(KaitaiStruct):
+        def __init__(self, _io, _parent=None, _root=None):
+            self._io = _io
+            self._parent = _parent
+            self._root = _root if _root else self
+            self._read()
+
+        def _read(self):
+            self.value = LithtechDat.StrWithLen2(self._io, self, self._root)
 
 
     class RenderData(KaitaiStruct):
