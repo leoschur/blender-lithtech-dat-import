@@ -1,85 +1,169 @@
 import bpy
 import bmesh
 import numpy
-from os.path import splitext, basename
+from os.path import splitext, basename, isfile
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
+from bpy.app.handlers import persistent
 from .kaitai_lithtech_dat_struct import LithtechDat
 from mathutils import Vector
 
 
-def createRenderNode(parent, rn_name, rn):
+def int32_to_rgba(color_int32):
+    """Convert an int32 color value to an RGBA vector.
+    Args:
+        color_int32 (int): The color value stored as an int32.
+    Returns:
+        mathutils.Vector: A Vector of the form (red, green, blue, alpha=1) containing the RGB values.
+    """
+    r = (color_int32 >> 16) & 0xFF
+    g = (color_int32 >> 8) & 0xFF
+    b = color_int32 & 0xFF
+    return Vector((r, g, b, 1))
+
+
+# TODO pass texture_directory down
+def createRenderNode(parent, rn_name, rn, texture_directory):
     """Create a collection for the render node and all objects within
     Positional arguments:
         parent: parent collection the node gets appended to
         rn_name: name for the render node collection
         rn: the data for the render node from type LithtechDat.RenderNode
     """
-    # renderNode
     renderNode_collection = bpy.data.collections.new(rn_name)
+    o = None
     #
-    # render nodes can no vertices
+    # render nodes has no vertices
+    # TODO for now only render triangles that have a texture
     if 0 < rn.num_vertices:
+        # create bmesh for the rendernode
+        bm = bmesh.new()
+        lay_col = bm.verts.layers.color.new("color")
+        lay_nor = bm.verts.layers.float_vector.new("normal")
+        lay_bin = bm.verts.layers.float_vector.new("binormal")
+        lay_tan = bm.verts.layers.float_vector.new("tangent")
+        for i, v in enumerate(rn.vertices):
+            vert = bm.verts.new([
+                v.v_pos.x * 0.01,
+                v.v_pos.z * 0.01,
+                v.v_pos.y * 0.01
+            ])
+            vert.normal = Vector(
+                (v.v_normal.x, v.v_normal.y, v.v_normal.z))
+            vert[lay_col] = int32_to_rgba(v.color)
+            vert[lay_nor] = Vector(
+                (v.v_normal.x, v.v_normal.y, v.v_normal.z))
+            vert[lay_bin] = Vector(
+                (v.v_binormal.x, v.v_binormal.y, v.v_binormal.z))
+            vert[lay_tan] = Vector(
+                (v.v_tangent.x, v.v_tangent.y, v.v_tangent.z))
+            vert.index = i
+            continue
+        bm.verts.ensure_lookup_table()
+        lay_poly_index = bm.faces.layers.int.new("poly_index")
+        for tri in rn.triangles:
+            try:
+                face = bm.faces.new([bm.verts[i] for i in tri.t])
+                face[lay_poly_index] = tri.poly_index
+            except ValueError:
+                # TODO can fail when face already exist, reconsider whether this requires extra action
+                pass
+            continue
+        bm.faces.ensure_lookup_table()
+        bm.faces.index_update()
         #
-        vertices = [[*map(lambda x: x*0.01, [v.v_pos.x, v.v_pos.z, v.v_pos.y])]
-                    for v in rn.vertices]
-        triangles = [tri.t for tri in rn.triangles]
+        # add addition vertex info
+        lay_uv0 = bm.loops.layers.uv.new("uv0")
+        lay_uv1 = bm.loops.layers.uv.new("uv1")
+        for face in bm.faces:
+            for loop in face.loops:
+                v = rn.vertices[loop.vert.index]
+                loop[lay_uv0].uv = Vector((v.uv0.x, v.uv0.y))
+                loop[lay_uv1].uv = Vector((v.uv1.x, v.uv1.y))
+                continue
+            face.normal_update()
+            continue
+        m = bpy.data.meshes.new(f"{rn_name}_Test_Mesh")
+        bm.to_mesh(m)
+        o = bpy.data.objects.new(f"{rn_name}_Test_Object", m)
+        renderNode_collection.objects.link(o)
+        # texturing the sections
         tri_counts = [s.triangle_count for s in rn.sections]
-        #
         for i, s in enumerate(rn.sections):
             t_from = sum(tri_counts[:i])
             t_till = t_from + tri_counts[i]
-            #
-            # this steps undercuts the polyIndex
-            section_tris = [t.t for t in rn.triangles[t_from:t_till]]
-            # dont forget about polyIndices
-            section_tris_poly_indices = [
-                t.poly_index for t in rn.triangles[t_from:t_till]]
-            # preparation for next step
-            section_tris = numpy.asarray(section_tris).reshape(-1)
-            section_vert_indices = numpy.unique(section_tris)
-            # find for each triangle the new correct indices to the separated vertices
-            section_tris = numpy.asarray(
-                [(numpy.where(section_vert_indices == t))[0][0] for t in section_tris])
-            # reshape back to triangle
-            section_tris = section_tris.reshape(
-                len(section_tris) // 3, 3).tolist()
-            #
-            # now we separate the verticies from the render node to the section
-            # one bmesh for each section
-            bm = bmesh.new()
-            for i in section_vert_indices:
-                bm.verts.new([
-                    rn.vertices[i].v_pos.x * 0.01,
-                    rn.vertices[i].v_pos.z * 0.01,
-                    rn.vertices[i].v_pos.y * 0.01
-                ])
-                continue
-            bm.verts.ensure_lookup_table()
-            # for debugging (does the same thing)
-            # section_vertices = [[rn.vertices[i].v_pos.x * 0.01,rn.vertices[i].v_pos.z * 0.01,rn.vertices[i].v_pos.y * 0.01] for j in section_vert_indices]
-            # create the faces from triangles
-            for t, poly_index in zip(section_tris, section_tris_poly_indices):
-                verts = [bm.verts[i] for i in t]
-                # face can already exist
-                try:
-                    face = bm.faces.new(verts)
-                    bm.faces.ensure_lookup_table()
-                    face.material_index = poly_index
-                except:
+            match s.shader_code:  # EPCShaderType
+                case 0:  # No shading
                     pass
-                continue
-            #
-            # still missing the texture from the section data can be empty if StrWithLen2 has length 0
-            # texture_name0 = s.texture_name[0].data
-            # texture_name1 = s.texture_name[1].data
-            #
-            m = bpy.data.meshes.new(f"{rn_name}_Section_{i:04}")
-            bm.to_mesh(m)
-            o = bpy.data.objects.new(f"{rn_name}_Object_{i:04}", m)
-            renderNode_collection.objects.link(o)
+                case 1:  # Textured and vertex-lit
+                    pass
+                case 2:  # Base lightmap
+                    pass
+                case 4:  # Texturing pass of lightmapping
+                    if s.texture_name[0].num_data:
+                        # TODO check if the ending can be '.DTX' as well
+                        tex_name = s.texture_name[0].data.replace('.dtx', '')
+                        mat = None
+                        img_path = texture_directory + '\\' + tex_name + '.tga'
+                        # check if material already exists
+                        if tex_name in bpy.data.materials:
+                            mat = bpy.data.materials[tex_name]
+                            pass
+                        elif isfile(img_path):  # TODO handle if img_path doesn't exists
+                            # if not create material with texture
+                            mat = bpy.data.materials.new(tex_name)
+                            mat.use_nodes = True
+                            nodes = mat.node_tree.nodes
+                            links = mat.node_tree.links
+                            sn_om = nodes.get("Material Output")
+                            sn_bsdfp = nodes.get("Principled BSDF")
+                            links.new(
+                                sn_bsdfp.outputs["BSDF"], sn_om.inputs["Surface"])
+                            sn_tex = nodes.new(type="ShaderNodeTexImage")
+                            img = bpy.data.images.load(img_path)
+                            sn_tex.image = img
+                            links.new(
+                                sn_tex.outputs["Color"], sn_bsdfp.inputs["Base Color"])
+                            sn_uv = nodes.new(type="ShaderNodeUVMap")
+                            # This is hardcoded and corresponds to the previously created UV layer
+                            sn_uv.uv_map = "uv0"
+                            links.new(sn_uv.outputs["UV"],
+                                      sn_tex.inputs["Vector"])
+                            pass
+                        # append texture to object if not already done
+                        if tex_name not in o.data.materials:
+                            o.data.materials.append(mat)
+                            pass
+                        # find triangels and set material_index to corresponding texture
+                        mat_idx = o.data.materials.find(tex_name)
+                        # TODO handle when material was not found // could be because of case sensitivity
+                        if 0 < mat_idx:
+                            for face in bm.faces[t_from:t_till]:
+                                face.material_index = mat_idx
+                                continue
+                            pass
+                        pass
+                    if s.texture_name[1].num_data:
+                        # 2nd texture is mostly empty
+                        # TODO check if there are some cases where a 2nd texture is given
+                        pass
+                    pass
+                case 5:  # Skypan
+                    pass
+                case 6:  # Skyportal
+                    pass
+                case 7:  # Occluder
+                    pass
+                case 8:  # Gouraud shaded dual texture
+                    pass
+                case 9:  # Texture stage of lightmap shaded dual texture
+                    pass
+                case _:
+                    pass
             continue
+        # update the mesh after modifying it!!!
+        bm.to_mesh(m)
         pass
     # no vertices available only create empty object
     else:
@@ -96,7 +180,7 @@ def createRenderNode(parent, rn_name, rn):
 # requires createRenderNode
 
 
-def createWMRenderNode(parent, wmrn):
+def createWMRenderNode(parent, wmrn, texture_directory):
     """create a World Model Render Node
     Positional Arguments:
         parent: collection the render node is going to be append to
@@ -105,7 +189,7 @@ def createWMRenderNode(parent, wmrn):
     node_collection = bpy.data.collections.new(f"WMRN_{wmrn.name.data}")
     for i, render_node in enumerate(wmrn.render_nodes):
         createRenderNode(
-            node_collection, f"{wmrn.name.data}_RN_{i}", render_node)
+            node_collection, f"{wmrn.name.data}_RN_{i}", render_node, texture_directory)
         continue
     parent.children.link(node_collection)
     return
@@ -113,7 +197,7 @@ def createWMRenderNode(parent, wmrn):
 # requires createRenderNode
 
 
-def createRenderNodes(parent, world):
+def createRenderNodes(parent, world, texture_directory):
     """create Render Nodes
     Positional Arguments:
         parent: collection the render node group is append to
@@ -121,7 +205,8 @@ def createRenderNodes(parent, world):
     """
     render_nodes = bpy.data.collections.new("RenderNodes")
     for i, render_node in enumerate(world.render_data.render_nodes):
-        createRenderNode(render_nodes, f"RenderNode_{i:03}", render_node)
+        createRenderNode(
+            render_nodes, f"RenderNode_{i:03}", render_node, texture_directory)
         continue
     parent.children.link(render_nodes)
     return
@@ -130,7 +215,7 @@ def createRenderNodes(parent, world):
 # requires createWMRenderNode
 
 
-def createWMRenderNodes(parent, world):
+def createWMRenderNodes(parent, world, texture_directory):
     """Create the World Model Render Nodes
     Positional Arguments:
         parent: the parent collection the world model render node group is append to
@@ -138,7 +223,7 @@ def createWMRenderNodes(parent, world):
     """
     wm_render_nodes = bpy.data.collections.new("WMRenderNodes")
     for node in world.render_data.world_model_render_nodes:
-        createWMRenderNode(wm_render_nodes, node)
+        createWMRenderNode(wm_render_nodes, node, texture_directory)
         continue
     parent.children.link(wm_render_nodes)
     return
@@ -150,7 +235,7 @@ def createPhysicsData(parent, world):
         parent: collection the data physics collection is append to
         world: dat_importer.lithtech_dat.LithtechDat imported map file
     """
-    physics = vertigo.collision_data.polygons
+    physics = world.collision_data.polygons
     poly_vertices = []
     poly_triangles = []
     index = 0
@@ -170,13 +255,16 @@ def createPhysicsData(parent, world):
     return
 
 
-def read_some_data(C, filepath, use_some_setting):
+# https://blender.stackexchange.com/a/8732
+@persistent
+def read_some_data(C, filepath, tex_dir):
     print("running read_some_data...")
     dat = LithtechDat.from_file(filepath)
     name = basename(splitext(filepath)[0])
     map = bpy.data.collections.new(name)
-    createRenderNodes(map, dat)
-    createWMRenderNodes(map, dat)
+    createRenderNodes(map, dat, tex_dir)
+    createWMRenderNodes(map, dat, tex_dir)
+    createPhysicsData(map, dat)
     C.collection.children.link(map)
 
     return {'FINISHED'}
@@ -191,6 +279,7 @@ class ImportLithtechDat(Operator, ImportHelper):
     # # important since its how bpy.ops.import_scene.lithtech_dat is constructed
     bl_idname = "import_scene.lithtech_dat"
     bl_label = "Import Lithtech DAT map (.dat)"
+    bl_context = "material"
 
     # ImportHelper mixin class uses this
     filename_ext = ".dat"
@@ -203,21 +292,27 @@ class ImportLithtechDat(Operator, ImportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
-    use_setting: BoolProperty(
-        name="Example Boolean",
-        description="Example Tooltip",
-        default=True,
-    )
+    # use_setting: BoolProperty(
+    #     name="Example Boolean",
+    #     description="Example Tooltip",
+    #     default=True,
+    # )
 
-    type: EnumProperty(
-        name="Example Enum",
-        description="Choose between two items",
-        items=(
-            ('OPT_A', "First Option", "Description one"),
-            ('OPT_B', "Second Option", "Description two"),
-        ),
-        default='OPT_A',
+    # type: EnumProperty(
+    #     name="Example Enum",
+    #     description="Choose between two items",
+    #     items=(
+    #         ('OPT_A', "First Option", "Description one"),
+    #         ('OPT_B', "Second Option", "Description two"),
+    #     ),
+    #     default='OPT_A',
+    # )
+
+    texture_directory: StringProperty(
+        name="Texture Directory",
+        subtype='DIR_PATH',
+        description="Select the folder containing the textures in '*.tga' file format with the original folder structure!"
     )
 
     def execute(self, context):
-        return read_some_data(context, self.filepath, self.use_setting)
+        return read_some_data(context, self.filepath, self.texture_directory)
