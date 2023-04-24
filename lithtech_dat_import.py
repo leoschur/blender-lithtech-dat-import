@@ -23,6 +23,40 @@ def int32_to_rgba(color_int32):
     return Vector((r, g, b, 1))
 
 
+def decompress_lm_data(compressed):
+    """RLE decompression
+    Arts:
+        compressed (byte array): Compressed data
+    Returns:
+        decompressed (list): Decompressed data
+    """
+    decompressed = []
+    i = 0
+    while i < len(compressed):
+        tag = compressed[i]
+        i += 1
+        # see if it is a run or a span
+        is_run = True if tag & 0x80 else False  # (tag & 0x80) != 0
+        # blit the color span
+        run_len = (tag & 0x7f) + 1
+        j = 0
+        while j < run_len:
+            j += 1
+            decompressed.append(compressed[i])  # r
+            decompressed.append(compressed[i+1])  # g
+            decompressed.append(compressed[i+2])  # b
+            decompressed.append(1)  # a this is for the transparancy
+            if not is_run:
+                i += 3
+                pass
+            continue
+        if is_run:
+            i += 3
+            pass
+        continue
+    return decompressed
+
+
 # TODO pass texture_directory down
 def createRenderNode(parent, rn_name, rn, texture_directory):
     """Create a collection for the render node and all objects within
@@ -31,7 +65,6 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
         rn_name: name for the render node collection
         rn: the data for the render node from type LithtechDat.RenderNode
     """
-    renderNode_collection = bpy.data.collections.new(rn_name)
     o = None
     #
     # render nodes has no vertices
@@ -84,10 +117,10 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                 continue
             face.normal_update()
             continue
-        m = bpy.data.meshes.new(f"{rn_name}_Test_Mesh")
+        m = bpy.data.meshes.new(f"{rn_name}_Mesh")
         bm.to_mesh(m)
-        o = bpy.data.objects.new(f"{rn_name}_Test_Object", m)
-        renderNode_collection.objects.link(o)
+        o = bpy.data.objects.new(f"{rn_name}_Object", m)
+        parent.objects.link(o)
         # texturing the sections
         tri_counts = [s.triangle_count for s in rn.sections]
         for i, s in enumerate(rn.sections):
@@ -98,14 +131,21 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                     pass
                 case 1:  # Textured and vertex-lit
                     pass
-                case 2:  # Base lightmap
+                case 2:  # Base light map
+                    img = bpy.data.images.new(
+                        f'LightMap_{rn_name}_S{i}', width=s.lm_width, height=s.lm_height)
+                    img.pixels = decompress_lm_data(s.lm_data)
+                    # TODO use light maps
                     pass
                 case 4:  # Texturing pass of lightmapping
                     if s.texture_name[0].num_data:
                         # TODO check if the ending can be '.DTX' as well
-                        tex_name = s.texture_name[0].data.replace('.dtx', '')
+                        # tex_name = s.texture_name[0].data.replace('.dtx', '')
+                        tex_path = s.texture_name[0].data.replace('.dtx', '')
+                        tex_name = tex_path.replace(
+                            'textures\\', '').replace('TEXTURES\\', '')
                         mat = None
-                        img_path = texture_directory + '\\' + tex_name + '.tga'
+                        img_path = texture_directory + '\\' + tex_path + '.tga'
                         # check if material already exists
                         if tex_name in bpy.data.materials:
                             mat = bpy.data.materials[tex_name]
@@ -121,6 +161,7 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                             links.new(
                                 sn_bsdfp.outputs["BSDF"], sn_om.inputs["Surface"])
                             sn_tex = nodes.new(type="ShaderNodeTexImage")
+                            # TODO file exists at this point, but this might still fail for some reason
                             img = bpy.data.images.load(img_path)
                             sn_tex.image = img
                             links.new(
@@ -135,10 +176,11 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                         if tex_name not in o.data.materials:
                             o.data.materials.append(mat)
                             pass
-                        # find triangels and set material_index to corresponding texture
+                        # find triangles and set material_index to corresponding texture
                         mat_idx = o.data.materials.find(tex_name)
                         # TODO handle when material was not found // could be because of case sensitivity
                         if 0 < mat_idx:
+                            # FIXME see line 68 number of faces in blender mesh does not necessarily match actual number of faces
                             for face in bm.faces[t_from:t_till]:
                                 face.material_index = mat_idx
                                 continue
@@ -172,9 +214,8 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
         o.location = Vector((rn.v_center.x, rn.v_center.z, rn.v_center.y))
         o.empty_display_size = max(
             [rn.v_half_dims.x, rn.v_half_dims.z, rn.v_half_dims.y])
-        renderNode_collection.objects.link(o)
+        parent.objects.link(o)
         pass
-    parent.children.link(renderNode_collection)
     return
 
 # requires createRenderNode
