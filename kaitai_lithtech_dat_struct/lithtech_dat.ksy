@@ -194,7 +194,8 @@ types:
       - id: reserved
         type: u2
       - id: node_sides_indices
-        type: u4
+        type: s4
+        doc: NODE_IN -1, NODE_OUT -2
         repeat: expr
         repeat-expr: 2
   world_model:

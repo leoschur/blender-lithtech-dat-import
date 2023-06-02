@@ -742,7 +742,7 @@ class LithtechDat(KaitaiStruct):
             self.reserved = self._io.read_u2le()
             self.node_sides_indices = []
             for i in range(2):
-                self.node_sides_indices.append(self._io.read_u4le())
+                self.node_sides_indices.append(self._io.read_s4le())
 
 
 
