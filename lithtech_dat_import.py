@@ -112,6 +112,33 @@ def createTexture(rel_path):
     return mat
 
 
+def createWorldModelNew(parent, wm):
+    # TODO leftof here
+    # mesh
+    # - points (missung uvs?)
+    # - polygons
+    # - - plane
+    # - - surface
+    wm_name = f"WM_{wm.world_name.data}" if wm.world_name.num_data else "WM"
+    node_collection = bpy.data.collections.new(wm_name)
+    for i, node in enumerate(wm.nodes):
+        bm = bmesh.new()
+        node_name = f"Node_{i:05}"
+        #
+        poly = wm.polygons[node.poly_index]
+        plane = wm.planes[poly.plane_index]
+        surf = wm.surfaces[poly.surface_index]
+        points = [bm.verts.new((wm.points[j].x * 0.01, wm.points[j].z * 0.01, wm.points[j].y * 0.01))
+                  for j in poly.vertices_indices]
+        #
+        m = bpy.data.meshes.new(f"{node_name}_Mesh")
+        bm.to_mesh(m)
+        o = bpy.data.objects.new(f"{node_name}", m)
+        node_collection.objects.link(o)
+    parent.children.link(node_collection)
+    pass
+
+
 def createWorldModel(parent: Collection, wm: LithtechDat.WorldModel):
     """Create a collection for the worldmodel
     Postional arguments:
@@ -120,7 +147,8 @@ def createWorldModel(parent: Collection, wm: LithtechDat.WorldModel):
     """
     bm = bmesh.new()
     if wm.num_points and wm.num_polygons:
-        verts = [bm.verts.new((p.x * 0.01, p.z * 0.01, p.y * 0.01)) for p in wm.points]
+        verts = [bm.verts.new((p.x * 0.01, p.z * 0.01, p.y * 0.01))
+                 for p in wm.points]
         bm.verts.index_update()
         bm.verts.ensure_lookup_table()
         for p in wm.polygons:
@@ -178,10 +206,12 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                     links = mat.node_tree.links
                     sn_om = nodes.get("Material Output")
                     sn_bsdfp = nodes.get("Principled BSDF")
-                    links.new(sn_bsdfp.outputs["BSDF"], sn_om.inputs["Surface"])
+                    links.new(sn_bsdfp.outputs["BSDF"],
+                              sn_om.inputs["Surface"])
                     sn_tex = nodes.new(type="ShaderNodeTexImage")
                     sn_tex.image = img
-                    links.new(sn_tex.outputs["Color"], sn_bsdfp.inputs["Base Color"])
+                    links.new(sn_tex.outputs["Color"],
+                              sn_bsdfp.inputs["Base Color"])
                     sn_uv = nodes.new(type="ShaderNodeUVMap")
                     sn_uv.uv_map = "uv1"
                     links.new(sn_uv.outputs["UV"], sn_tex.inputs["Vector"])
@@ -226,7 +256,8 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                     for tri in tris:
                         # TODO this might raise value error for duplicate faces
                         try:
-                            bm.faces.new([bm.verts[verts.index(i)] for i in tri])
+                            bm.faces.new([bm.verts[verts.index(i)]
+                                         for i in tri])
                             pass
                         except ValueError:
                             pass
@@ -274,7 +305,8 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                             links = mat.node_tree.links
                             sn_om = nodes.get("Material Output")
                             sn_bsdfp = nodes.get("Principled BSDF")
-                            links.new(sn_bsdfp.outputs["BSDF"], sn_om.inputs["Surface"])
+                            links.new(
+                                sn_bsdfp.outputs["BSDF"], sn_om.inputs["Surface"])
                             sn_tex = nodes.new(type="ShaderNodeTexImage")
                             # TODO file exists at this point, but this might still fail for some reason
                             img = bpy.data.images.load(img_path)
@@ -282,12 +314,14 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                             links.new(
                                 sn_tex.outputs["Color"], sn_bsdfp.inputs["Base Color"]
                             )
-                            links.new(sn_tex.outputs["Alpha"], sn_bsdfp.inputs["Alpha"])
+                            links.new(
+                                sn_tex.outputs["Alpha"], sn_bsdfp.inputs["Alpha"])
                             mat.blend_method = "CLIP"
                             sn_uv = nodes.new(type="ShaderNodeUVMap")
                             # This is hardcoded and corresponds to the previously created UV layer
                             sn_uv.uv_map = "uv0"
-                            links.new(sn_uv.outputs["UV"], sn_tex.inputs["Vector"])
+                            links.new(sn_uv.outputs["UV"],
+                                      sn_tex.inputs["Vector"])
                             pass
                         # append texture to object if not already done
                         if tex_name not in o.data.materials:
