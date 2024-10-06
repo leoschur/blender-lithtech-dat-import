@@ -90,7 +90,7 @@ class ImportLithtechDat(Operator, ImportHelper):
             pass
         return mat
 
-    def createWorldModelNew(self, parent, wm):
+    def createWorldModelNew(self, parent: Collection, wm: LithtechDat.WorldModel):
         # TODO leftof here
         # mesh
         # - points (missung uvs?)
@@ -371,14 +371,14 @@ class ImportLithtechDat(Operator, ImportHelper):
 
     # requires createRenderNode
 
-    def createRenderNodes(self, parent, world):
+    def createRenderNodes(self, parent, lt_dat: LithtechDat):
         """create Render Nodes
         Positional Arguments:
             parent: collection the render node group is append to
             world: dat_importer.lithtech_dat.LithtechDat imported map file
         """
         render_nodes = bpy.data.collections.new("RenderNodes")
-        for i, render_node in enumerate(world.render_data.render_nodes):
+        for i, render_node in enumerate(lt_dat.render_data.render_nodes):
             self.createRenderNode(
                 render_nodes, f"RenderNode_{i:03}", render_node
             )
@@ -389,26 +389,26 @@ class ImportLithtechDat(Operator, ImportHelper):
     # requires createRenderNode
     # requires createWMRenderNode
 
-    def createWMRenderNodes(self, parent, world):
+    def createWMRenderNodes(self, parent, lt_dat: LithtechDat):
         """Create the World Model Render Nodes
         Positional Arguments:
             parent: the parent collection the world model render node group is append to
             world: dat_importer.lithtech_dat.LithtechDat imported map file
         """
         wm_render_nodes = bpy.data.collections.new("WMRenderNodes")
-        for node in world.render_data.world_model_render_nodes:
+        for node in lt_dat.render_data.world_model_render_nodes:
             self.createWMRenderNode(wm_render_nodes, node)
             continue
         parent.children.link(wm_render_nodes)
         return
 
-    def createPhysicsData(self, parent, world):
+    def createPhysicsData(self, parent, lt_dat: LithtechDat):
         """Create the physics/ collision data
         Positional Arguments:
             parent: collection the data physics collection is append to
             world: dat_importer.lithtech_dat.LithtechDat imported map file
         """
-        physics = world.collision_data.polygons
+        physics = lt_dat.collision_data.polygons
         poly_vertices = []
         poly_triangles = []
         index = 0
@@ -428,6 +428,34 @@ class ImportLithtechDat(Operator, ImportHelper):
         parent.objects.link(o)
         return
 
+    def createWorldInfo(self, world_name: str, lt_world: LithtechDat.World):
+        """createWorldInfo
+        currently only creates the ambient light
+        Positional Arguments:
+            world_name: Name for the created blender world
+            lt_world: kaitai_lithtech_dat_struct.LithtechDat.World extracted struct
+        """
+        try:
+            self.report({'INFO'}, 'Trying to extract World Info ambientlight')
+            world_attributes = lt_world.world_info_string.data.split(';')
+            ambient_light = next(
+                filter(lambda s: s.startswith('ambientlight'), world_attributes))
+            ambient_light = ambient_light.removeprefix('ambientlight ')
+            ambient_light = ambient_light.split(' ')
+            ambient_light = (
+                *(int(s) / 255 for s in ambient_light), 1.)
+        except:
+            self.report(
+                {'WARNING'}, 'World Info Ambient Light could not be parsed')
+        else:
+            self.report({'INFO'}, 'Creating new Blender World')
+            world = bpy.data.worlds.new(name=world_name)
+            world.use_nodes = True
+            # assuming default nodes set to "Background" -> "World Output"
+            world.node_tree.nodes['Background'].inputs['Color'].default_value = ambient_light
+            self.C.scene.world = world
+        return
+
     texture_dir_path: StringProperty(
         name="Texture Directory",
         subtype="DIR_PATH",
@@ -436,19 +464,22 @@ class ImportLithtechDat(Operator, ImportHelper):
 
     # https://blender.stackexchange.com/a/8732
     @persistent
-    def read_some_data(self, C):
+    def import_data(self):
         print("running read_some_data...")
-        dat = LithtechDat.from_file(self.filepath)
+        lt_dat = LithtechDat.from_file(self.filepath)
         name = basename(splitext(self.filepath)[0])
+
+        self.createWorldInfo(name, lt_dat.world)
         map = bpy.data.collections.new(name)
-        self.createRenderNodes(map, dat)
-        self.createWMRenderNodes(map, dat)
-        self.createPhysicsData(map, dat)
-        C.collection.children.link(map)
+        self.createRenderNodes(map, lt_dat)
+        self.createWMRenderNodes(map, lt_dat)
+        self.createPhysicsData(map, lt_dat)
+        self.C.collection.children.link(map)
 
         return {"FINISHED"}
 
     def execute(self, context):
+        self.C = context
         # TODO check self.filepath
         # TODO check self.texture_dir_path
-        return self.read_some_data(context)
+        return self.import_data()
