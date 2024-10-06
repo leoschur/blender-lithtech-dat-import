@@ -192,6 +192,7 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                 case 0:  # No shading
                     pass
                 case 1:  # Textured and vertex-lit
+                    # Might have a texture, might not have one
                     pass
                 case 2:  # Base light map
                     # This can be skipped, as lightmaps are not used
@@ -271,8 +272,8 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                         for loop in face.loops:
                             # resolve index to grep lithtech vertex for uv data
                             v = rn.vertices[verts[loop.vert.index]]
-                            loop[lay_uv0].uv = Vector((v.uv0.x, v.uv0.y))
-                            loop[lay_uv1].uv = Vector((v.uv1.x, v.uv1.y))
+                            loop[lay_uv0].uv = Vector((v.uv0.x, -v.uv0.y))
+                            loop[lay_uv1].uv = Vector((v.uv1.x, -v.uv1.y))
                             continue
                         face.normal_update()
                         continue
@@ -281,6 +282,7 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                     m = bpy.data.meshes.new(f"{rn_name}_Section{si:04}_Mesh")
                     bm.to_mesh(m)
                     o = bpy.data.objects.new(f"{rn_name}_Section{si:04}", m)
+                    o.data['Shader Code'] = s.shader_code
                     parent.objects.link(o)
 
                     # create and apply textures
@@ -340,14 +342,20 @@ def createRenderNode(parent, rn_name, rn, texture_directory):
                         pass
                     pass
                 case 5:  # Skypan
+                    # TODO should refer to the Skybox in Blender
                     pass
                 case 6:  # Skyportal
+                    # TODO should refer to the Area Lights/ Portal Lights in Blender
+                    # https://docs.blender.org/manual/en/latest/render/cycles/light_settings.html#area-lights
+                    # skyportal data contained within the "outer" rendernode?
                     pass
                 case 7:  # Occluder
+                    # occluder data contained within the "outer" rendernode?
                     pass
                 case 8:  # Gouraud shaded dual texture
                     pass
                 case 9:  # Texture stage of lightmap shaded dual texture
+                    # (can) contains two textures/ textureNames
                     pass
                 case _:
                     pass
@@ -448,21 +456,6 @@ def createPhysicsData(parent, world):
     return
 
 
-# https://blender.stackexchange.com/a/8732
-@persistent
-def read_some_data(C, filepath, tex_dir):
-    print("running read_some_data...")
-    dat = LithtechDat.from_file(filepath)
-    name = basename(splitext(filepath)[0])
-    map = bpy.data.collections.new(name)
-    createRenderNodes(map, dat, tex_dir)
-    createWMRenderNodes(map, dat, tex_dir)
-    createPhysicsData(map, dat)
-    C.collection.children.link(map)
-
-    return {"FINISHED"}
-
-
 class ImportLithtechDat(Operator, ImportHelper):
     """Import a Lithtech DAT map file
     This importer is developed and tested for Combat Arms maps.
@@ -508,5 +501,19 @@ class ImportLithtechDat(Operator, ImportHelper):
         description="Select the folder containing the textures in '*.tga' file format with the original folder structure!",
     )
 
+    # https://blender.stackexchange.com/a/8732
+    @persistent
+    def read_some_data(self, C, filepath, tex_dir):
+        print("running read_some_data...")
+        dat = LithtechDat.from_file(filepath)
+        name = basename(splitext(filepath)[0])
+        map = bpy.data.collections.new(name)
+        createRenderNodes(map, dat, tex_dir)
+        createWMRenderNodes(map, dat, tex_dir)
+        createPhysicsData(map, dat)
+        C.collection.children.link(map)
+
+        return {"FINISHED"}
+
     def execute(self, context):
-        return read_some_data(context, self.filepath, self.texture_directory)
+        return self.read_some_data(context, self.filepath, self.texture_directory)
