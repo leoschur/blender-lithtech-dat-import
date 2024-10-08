@@ -1,7 +1,12 @@
 # Blender Lithtech DAT Importer
 
-This is a blender addon to import Lithtech \*.dat (DAT) map files. The plugin is developed with Blender v(3.4.1) and works for Lithtech DAT files with version 85.
-The Plugin is developed and tested for Combat Arms maps, but should work with every Lithtech game, provided that the version matche.
+⚠ Status Experimental ⚠
+
+This is a blender addon to import Lithtech \*.dat (DAT) map files. The plugin is developed with Blender v(4.2.2) and "works" for Lithtech DAT files with version 85.
+Keep in mind that these are compiled engine-specific game files.
+Some things may not translate well in Blender, so details may be lost.
+However, I try to do my best to make sense of the available data and display it meaningfully in Blender.
+The Plugin is developed and tested for Combat Arms maps, but should work with every Lithtech game, provided that the version matches.
 
 ## Installation
 
@@ -40,8 +45,15 @@ If you want to reinstall the Add-on or get a newer version
 4.  Restart Blender
 5.  Only than you can reinstall the Add-on again
 
-## Limitation
+### Note:
 
--   Textures are currently not supported
--   WorldObjects are also not supported
+Currently a texture directory must be specified upon the Import dialog.
+This needs to contain the "Textures" directory with the original folder-/file-structure from the game.
+The images need to be converted from `*.DTX`/ `*.dtx` into [`*.tga` file format](https://en.wikipedia.org/wiki/Truevision_TGA) beforehand.
+
+## Current Limitation
+
+-   WorldObjects are not yet supported
+-   Only some shaders are considered
+-   WorldModels are created only partially
 -   The RenderNodes are created in a rather basic way
