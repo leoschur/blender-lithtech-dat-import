@@ -1,7 +1,7 @@
 import bpy
 import bmesh
 import numpy as np
-from os.path import splitext, basename, isfile
+import os.path as path
 from itertools import accumulate
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
@@ -60,12 +60,12 @@ class ImportLithtechDat(Operator, ImportHelper):
         """
         tex_path = rel_path.replace(".dtx", "")
         tex_name = tex_path.replace("textures\\", "").replace("TEXTURES\\", "")
-        img_path = self.texture_dir_path + "\\" + tex_path + ".tga"
+        img_path = path.join(self.texture_dir_path, *tex_name.upper().split('\\')) + ".tga"
         mat = None
         if tex_name in bpy.data.materials:
             mat = bpy.data.materials[tex_name]
             pass
-        elif isfile(img_path):
+        elif path.isfile(img_path):
             mat = bpy.data.materials.new(tex_name)
             mat.use_nodes = True
             nodes = mat.node_tree.nodes
@@ -273,12 +273,12 @@ class ImportLithtechDat(Operator, ImportHelper):
                                 "TEXTURES\\", ""
                             )
                             mat = None
-                            img_path = self.texture_dir_path + "\\" + tex_path + ".tga"
+                            img_path = path.join(self.texture_dir_path, *tex_name.upper().split('\\')) + ".tga"
                             # check if material already exists
                             if tex_name in bpy.data.materials:
                                 mat = bpy.data.materials[tex_name]
                                 pass
-                            elif isfile(img_path):  # TODO handle if img_path doesn't exists
+                            elif path.isfile(img_path):  # TODO handle if img_path doesn't exists
                                 # if not create material with texture
                                 mat = bpy.data.materials.new(tex_name)
                                 mat.use_nodes = True
@@ -304,6 +304,8 @@ class ImportLithtechDat(Operator, ImportHelper):
                                 links.new(sn_uv.outputs["UV"],
                                           sn_tex.inputs["Vector"])
                                 pass
+                            else:
+                                self.report({'ERROR'}, f"File not found: {img_path}")
                             # append texture to object if not already done
                             if tex_name not in o.data.materials:
                                 o.data.materials.append(mat)
@@ -467,7 +469,7 @@ class ImportLithtechDat(Operator, ImportHelper):
     def import_data(self):
         print("running read_some_data...")
         lt_dat = LithtechDat.from_file(self.filepath)
-        name = basename(splitext(self.filepath)[0])
+        name = path.basename(path.splitext(self.filepath)[0])
 
         self.createWorldInfo(name, lt_dat.world)
         map = bpy.data.collections.new(name)
