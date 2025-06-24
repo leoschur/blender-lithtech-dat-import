@@ -7,7 +7,7 @@ bl_info = {
     "name": "Lithtech DAT Map Format (.dat)",
     "author": "leos",
     "description": "This plugins allows you to import Lithtech Map files.",
-    "blender": (3, 4, 1),
+    "blender": (4, 2, 2),
     "version": (0, 0, 3),
     "location": "File > Import > Lithtech DAT",
     "warning": "",

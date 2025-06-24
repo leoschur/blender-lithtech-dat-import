@@ -99,6 +99,34 @@ class ImportLithtechDat(Operator, ImportHelper):
         # - - surface
         wm_name = f"WM_{wm.world_name.data}" if wm.world_name.num_data else "WM"
         node_collection = bpy.data.collections.new(wm_name)
+
+        # load textures
+        textures = []
+        if wm.num_texture_names != 0:
+            for texture_rel_path in wm.texture_names:
+                rel_path = texture_rel_path.removesuffix(".dtx")
+                rel_path = rel_path.removesuffix(".DTX")
+                rel_path = rel_path.removeprefix("textures")
+                rel_path = rel_path.removeprefix("TEXTURES")
+                try:
+                    img = bpy.data.images.load(
+                        f"{self.texture_dir_path}\\{rel_path}.tga",
+                        check_existing=True)
+                    if img == None:
+                        self.report(
+                            {"ERROR"}, f"Image {rel_path} could not be loaded")
+                except Exception as e:
+                    self.report({"ERROR"}, f"{e}")
+
+        # TODO create Blender Material for each Surface
+
+        # TODO create BMesh.Vertices from WorldModel.Points
+
+        # TODO create BMesh.Edges from WorldModel.Polygons.vertices_indices (should be points_indices)
+
+        else:
+            self.report({"DEBUG"}, f"{wm_name} has no texture image assigned")
+
         for i, node in enumerate(wm.nodes):
             bm = bmesh.new()
             node_name = f"Node_{i:05}"
@@ -113,6 +141,7 @@ class ImportLithtechDat(Operator, ImportHelper):
             bm.to_mesh(m)
             o = bpy.data.objects.new(f"{node_name}", m)
             node_collection.objects.link(o)
+
         parent.children.link(node_collection)
         pass
 
